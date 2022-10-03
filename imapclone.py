@@ -20,7 +20,7 @@ class Imapclone():
             logging.basicConfig(level=logging.DEBUG)
         elif debug is False:
             logging.basicConfig(level=logging.INFO)
-            
+
         self.sourceimap = None
         self.sourceuser = None
         self.sourcepass = None
@@ -115,12 +115,12 @@ class Imapclone():
         self._dbtoimap()
 
     def _dbtoimap(self):
-        with sqlite3.connect(self.dbfile) as db:
-            folderlist = db.execute("SELECT folder from emails GROUP BY folder")
+        with sqlite3.connect(self.dbfile) as database:
+            folderlist = database.execute("SELECT folder from emails GROUP BY folder")
             for folder in folderlist:
                 self._writetoimap(folder=folder[0])
-            total = db.execute("SELECT count(*) from emails").fetchone()[0]
-            for count, data in enumerate(db.execute("SELECT * from emails")):
+            total = database.execute("SELECT count(*) from emails").fetchone()[0]
+            for count, data in enumerate(database.execute("SELECT * from emails")):
                 self.folder = data[0]
                 self.flags = data[1]
                 self.internaldate = imaplib.Time2Internaldate(data[2])
@@ -141,7 +141,7 @@ class Imapclone():
 
     def _imapsourcegetemail(self):
         for folder in self.sourcefolderlist[1]:
-            self.folder = folder.decode().replace('"."','"/"').split('"/"')[1].strip()
+            self.folder = folder.decode().split(" ")[-1].strip()
             self.source.select(self.folder,readonly=True)
             _, data = self.source.search(None, 'ALL')
             emailsinfolder = len(data[0].split())
@@ -178,8 +178,11 @@ class Imapclone():
                 database.execute('INSERT INTO emails VALUES(?,?,?,?)',
                 (self.folder,self.flags,int(time.mktime(self.internaldate)),self.body))
                 database.commit()
-            except sqlite3.Error:
-                logging.info("Duplicate email, skipping")
+            except sqlite3.Error as e:
+                if "UNIQUE constraint failed" in str(e):
+                    logging.info("Duplicate email, skipping")
+                else:
+                    logging.error(e)
 
     def _imapdeslogin(self):
         logging.info(f"Connecting to destination {self.desimap}")
@@ -193,7 +196,7 @@ class Imapclone():
         """
             Removes problematic flags
         """
-        return self.flags.casefold().replace("\\recent","").replace("\\indexed","").strip()
+        return self.flags.replace("\\Recent","").replace("\\Indexed","").strip()
 
     def _writetoimap(self,cur=None,total=None,folder=None):
         while True:
@@ -207,7 +210,7 @@ class Imapclone():
                         self.body)
                 break
             except Exception as e:
-                if "Invalid system flag" in str(e):
+                if "flag" in str(e):
                     logging.warning("Message flag error, removing flags for message")
                     self.flags = ""
                 else:
@@ -215,8 +218,8 @@ class Imapclone():
                 time.sleep(10)
                 try:
                     self._imapdeslogin()
-                except Exception as e:
-                    logging.warning(e)
+                except Exception as ex:
+                    logging.warning(ex)
         if folder:
             logging.info(f"Folder: {res}, {folder}")
         else:
