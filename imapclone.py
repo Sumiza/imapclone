@@ -1,5 +1,5 @@
 """
-    Clone IMAP
+    Clone IMAP emails and folder stucture
 """
 
 import imaplib
@@ -76,9 +76,9 @@ class Imapclone():
     def clone(self) -> None:
         """
             Starts the cloning progress.
-            Requires two of these to be set first:
-                A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')
-                A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')
+            Requires two of these to be set first:\n
+                A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')\n
+                A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')\n
                 A.database("database.db")
 
         """
@@ -220,13 +220,4 @@ class Imapclone():
         if folder:
             logging.info(f"Folder: {res}, {folder}")
         else:
-            logging.info(f"Posted: {res}, Folder: {self.folder} - {cur} / {total} Flags: {self._cleanflags()}")
-
-
-if __name__ == '__main__':
-
-    A = Imapclone(debug=logging.INFO)
-    A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')
-    # A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')
-    A.database("database.db")
-    A.clone()
+            logging.info(f"Posted: {res}, Folder: {self.folder} - {cur} / {total} Flags: {self.flags}")
