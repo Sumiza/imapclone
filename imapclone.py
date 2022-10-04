@@ -9,7 +9,12 @@ import logging
 
 class Imapclone():
     """
-    Clone IMAP folder structure, emails and flags to a SQLite database or another IMAP server.
+    Clone IMAP folder structure, emails and flags to a SQLite database or another IMAP server.\n
+    imap = Imapclone()\n
+    imap.imapsource("mail.example.com","example@example.com",'pa5sw0rd')\n
+    imap.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')\n
+    imap.database("database.db")\n
+    imap.clone()
     """
 
     def __init__(self,debug=False) -> None:
@@ -77,9 +82,9 @@ class Imapclone():
         """
             Starts the cloning progress.
             Requires two of these to be set first:\n
-                A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')\n
-                A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')\n
-                A.database("database.db")
+                imap.imapsource("mail.example.com","example@example.com",'pa5sw0rd')\n
+                imap.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')\n
+                imap.database("database.db")
 
         """
         if self.sourceimap:
@@ -141,36 +146,48 @@ class Imapclone():
 
     def _imapsourcegetemail(self):
         for folder in self.sourcefolderlist[1]:
-            self.folder = folder.decode().split(" ")[-1].strip()
-            self.source.select(self.folder,readonly=True)
-            _, data = self.source.search(None, 'ALL')
-            emailsinfolder = len(data[0].split())
+            foldersplit = folder.decode().replace('"."','"/"').split('"/"')
 
-            if self.destination is True:
-                self._writetoimap(folder=self.folder)
+            if 'Noselect' not in foldersplit[0]:
+                self.folder = foldersplit[1].strip()
+                self.source.select(self.folder,readonly=True)
 
-            for num in data[0].split():
-                while True:
-                    try:
-                        typ, message = self.source.fetch(num,'(FLAGS INTERNALDATE BODY[])')
-                        break
-                    except Exception as e:
-                        logging.warning(e)
-                        time.sleep(10)
-                        try:
-                            self._imapsourcelogin()
-                        except Exception as x:
-                            logging.warning(x)
-                self.flags = ' '.join(flags.decode() for flags in imaplib.ParseFlags(message[0][0]))
-                self.internaldate = imaplib.Internaldate2tuple(message[0][0])
-                self.body = message[0][1]
-                logging.debug(self.flags)
-                logging.debug(self.internaldate)
-                logging.info(f"Fetched: {typ}, Folder: {self.folder} - {num.decode()} / {emailsinfolder} Flags:{self.flags}")
                 if self.destination is True:
-                    self._writetoimap(num.decode(),emailsinfolder)
-                elif self.destination is False:
-                    self._writetodb()
+                        self._writetoimap(folder=self.folder)
+
+                # make sure the folder isnt empty
+                _, data = self.source.search(None, 'ALL')
+
+                if data[0] != b'':
+                    _, uidlist = self.source.fetch('1:*','UID')
+                    uidlist = [i.decode().strip(")").split(" ")[-1] for i in uidlist]
+                    emailsinfolder = len(uidlist)
+
+                    for count, uid in enumerate(uidlist):
+                        count += 1
+                        while True:
+                            try:
+                                typ, message = self.source.uid('FETCH',uid,'(FLAGS INTERNALDATE BODY[])')
+                                break
+                            except Exception as e:
+                                logging.warning(e)
+                                time.sleep(10)
+                                try:
+                                    self._imapsourcelogin()
+                                except Exception as x:
+                                    logging.warning(x)
+
+                        if message != [None]:
+                            self.flags = ' '.join(flags.decode() for flags in imaplib.ParseFlags(message[0][0]))
+                            self.internaldate = imaplib.Internaldate2tuple(message[0][0])
+                            self.body = message[0][1]
+                            logging.debug(self.flags)
+                            logging.debug(self.internaldate)
+                            logging.info(f"Fetched: {typ}, Folder: {self.folder} - {count} / {emailsinfolder} Flags:{self.flags}")
+                            if self.destination is True:
+                                self._writetoimap(count,emailsinfolder)
+                            elif self.destination is False:
+                                self._writetodb()
 
     def _writetodb(self):
         with sqlite3.connect(self.dbfile) as database:
@@ -186,6 +203,7 @@ class Imapclone():
 
     def _imapdeslogin(self):
         logging.info(f"Connecting to destination {self.desimap}")
+        
         if self.desssl:
             self.des = imaplib.IMAP4_SSL(self.desimap)
         else:
@@ -218,8 +236,8 @@ class Imapclone():
                 time.sleep(10)
                 try:
                     self._imapdeslogin()
-                except Exception as ex:
-                    logging.warning(ex)
+                except Exception as x:
+                    logging.warning(x)
         if folder:
             logging.info(f"Folder: {res}, {folder}")
         else:
