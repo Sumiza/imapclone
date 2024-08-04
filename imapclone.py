@@ -242,3 +242,36 @@ class Imapclone():
             logging.info(f"Folder: {res}, {folder}")
         else:
             logging.info(f"Posted: {res}, Folder: {self.folder} - {cur} / {total} Flags: {self.flags}")
+
+if __name__ == '__main__':
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        prog='IMAP Cloner',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='''Clone mailbox via imap to database or target imap
+        Examples:
+            IMAP to IMAP:
+                imapclone.py --source mail.example.com example@example.com pa5sw0rd --destination mail.example2.com example2@example2.com pa5sw0rd2
+            
+            IMAP to Database:
+                imapclone.py --source mail.example.com example@example.com pa5sw0rd --destination databasename.sql
+            
+            Database to IMAP:
+                imapclone.py --source databasename.sql --destination mail.example2.com example2@example2.com pa5sw0rd2''')
+        
+    parser.add_argument('-v',action='store_true',default=False)
+    parser.add_argument('--source','-s',nargs='+')
+    parser.add_argument('--destination','-d',nargs='+')
+    a = parser.parse_args()
+    imap = Imapclone(debug=a.v)
+    if len(a.source) == 3:
+        imap.imapsource(a.source[0],a.source[1],a.source[2])
+    else:
+        imap.database(a.source[0])
+
+    if len(a.destination) == 3:
+        imap.imapdestination(a.destination[0],a.destination[1],a.destination[2])
+    else:
+        imap.database(a.destination[0])
+    imap.clone()
