@@ -18,19 +18,19 @@ Examples:
 
 ``` python
 #IMAP to database
-A = Imapclone()
+A = ImapClone()
 A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')
 A.database("database.db")
 A.clone()
 
 #IMAP TO IMAP
-A = Imapclone()
+A = ImapClone()
 A.imapsource("mail.example.com","example@example.com",'pa5sw0rd')
 A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')
 A.clone()
 
 #Database to IMAP
-A = Imapclone()
+A = ImapClone()
 A.imapdestination("mail.example2.com","example2@example2.com",'pa5sw0rd2')
 A.database("database.db")
 A.clone()

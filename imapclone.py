@@ -7,7 +7,7 @@ import time
 import sqlite3
 import logging
 
-class Imapclone():
+class ImapClone():
     """
     Clone IMAP folder structure, emails and flags to a SQLite database or another IMAP server.\n
     imap = Imapclone()\n
@@ -264,7 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--source','-s',nargs='+')
     parser.add_argument('--destination','-d',nargs='+')
     a = parser.parse_args()
-    imap = Imapclone(debug=a.v)
+    imap = ImapClone(debug=a.v)
     if len(a.source) == 3:
         imap.imapsource(a.source[0],a.source[1],a.source[2])
     else:
