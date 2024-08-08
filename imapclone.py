@@ -35,6 +35,7 @@ class ImapClone():
         self.despass = None
         self.desssl = True
         self.dbfile = None
+        self.backupdb = None
         self.folder = None
         self.destination = None
         self.flags = None
@@ -56,7 +57,7 @@ class ImapClone():
         self.sourcepass = password
         self.sourcessl = ssl
 
-    def imapdestination(self,imap:str,user:str,password:str,ssl:bool=True) -> None:
+    def imapdestination(self,imap:str,user:str,password:str,ssl:bool=True,backupdb:bool=None) -> None:
         """
             imap = imap.example.com\n
             user = exampleuser\n
@@ -67,6 +68,7 @@ class ImapClone():
         self.desuser = user
         self.despass = password
         self.desssl = ssl
+        self.backupdb = backupdb
 
     def database(self,dbfile:str) -> None:
         """
@@ -74,9 +76,6 @@ class ImapClone():
             otherwise sets the database file name as source
         """
         self.dbfile = dbfile
-        with sqlite3.connect(self.dbfile) as database:
-            database.execute('CREATE TABLE IF NOT EXISTS emails(folder TEXT NOT NULL, flags BLOB NOT NULL, internaldate INTEGER NOT NULL, message BLOB NOT NULL, UNIQUE(folder,internaldate,message))')
-            database.commit()
 
     def clone(self) -> None:
         """
@@ -88,10 +87,13 @@ class ImapClone():
 
         """
         if self.sourceimap:
+            if self.dbfile:
+                with sqlite3.connect(self.dbfile) as database:
+                    database.execute('CREATE TABLE IF NOT EXISTS emails(folder TEXT NOT NULL, flags BLOB NOT NULL, internaldate INTEGER NOT NULL, message BLOB NOT NULL, UNIQUE(folder,internaldate,message))')
+                    database.commit()
             if self.desimap:
                 self.destination = True
                 self._startimaptoimap()
-
             elif self.dbfile:
                 self.destination = False
                 self._startimaptodb()
@@ -184,7 +186,10 @@ class ImapClone():
                             logging.debug(self.flags)
                             logging.debug(self.internaldate)
                             logging.info(f"Fetched: {typ}, Folder: {self.folder} - {count} / {emailsinfolder} Flags:{self.flags}")
-                            if self.destination is True:
+                            if self.destination is True and self.backupdb is True:
+                                self._writetodb()
+                                self._writetoimap(count,emailsinfolder)
+                            elif self.destination is True:
                                 self._writetoimap(count,emailsinfolder)
                             elif self.destination is False:
                                 self._writetodb()
@@ -263,15 +268,18 @@ if __name__ == '__main__':
     parser.add_argument('-v',action='store_true',default=False)
     parser.add_argument('--source','-s',nargs='+')
     parser.add_argument('--destination','-d',nargs='+')
+    parser.add_argument('-b',action='store_true',default=None)
     a = parser.parse_args()
     imap = ImapClone(debug=a.v)
+    if a.b:
+        imap.database(str(a.source[1])+'.sql')
     if len(a.source) == 3:
         imap.imapsource(a.source[0],a.source[1],a.source[2])
     else:
         imap.database(a.source[0])
 
     if len(a.destination) == 3:
-        imap.imapdestination(a.destination[0],a.destination[1],a.destination[2])
+        imap.imapdestination(a.destination[0],a.destination[1],a.destination[2],backupdb = True)
     else:
         imap.database(a.destination[0])
     imap.clone()
